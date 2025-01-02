@@ -35,19 +35,19 @@ This project implements an ESP32-based system for object detection and servo con
 
 #### Ultrasonic Sensors (HC-SR04):
 - **Front Sensor**:
-  - *TRIG Pin*: GPIO 15
-  - *ECHO Pin*: GPIO 4
+  - **TRIG Pin**: GPIO 15
+  - **ECHO Pin**: GPIO 4
 - **Left Sensor**:
-  - *TRIG Pin*: GPIO 18
-  - *ECHO Pin*: GPIO 19
+  - **TRIG Pin**: GPIO 18
+  - **ECHO Pin**: GPIO 19
 - **Right Sensor**:
-  - *TRIG Pin*: GPIO 23
-  - *ECHO Pin*: GPIO 22
+  - **TRIG Pin**: GPIO 23
+  - **ECHO Pin**: GPIO 22
 
 #### Servo Motor:
-- *Signal Pin*: GPIO 13
-- *VCC Pin*: Connect to 5V (or external power source if required for high torque)
-- *GND Pin*: Connect to ESP32 GND
+- **Signal Pin**: GPIO 13
+- **VCC Pin**: Connect to 5V (or external power source if required for high torque)
+- **GND Pin**: Connect to ESP32 GND
 
 #### ESP32 Power Supply:
 - **USB Connection**: Use a micro-USB cable to power the ESP32 development board.

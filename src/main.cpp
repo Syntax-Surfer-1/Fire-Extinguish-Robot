@@ -33,7 +33,7 @@ int OBJECT_THRESHOLD_LEFT = 25;  // in cm
 int OBJECT_THRESHOLD_RIGHT = 25; // in cm
 
 // Delay after object detection (adjustable)
-float OBJECT_DETECTION_DELAY = 0.5; // Reduced delay to make the robot respond faster
+float OBJECT_DETECTION_DELAY = 5.0; // Reduced delay to make the robot respond faster
 
 // Initialize ultrasonic sensors
 NewPing sonarFront(TRIG_PIN_FRONT, ECHO_PIN_FRONT, MAX_DISTANCE);

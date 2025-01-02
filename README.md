@@ -55,8 +55,8 @@ This project implements an ESP32-based system for object detection and servo con
 
 For further information or collaboration, please reach out via:
 
-- **Email:** [your-email@example.com](mailto:your-email@example.com)
-- **GitHub:** [Your GitHub Profile](https://github.com/your-profile) 🌐
+- **Email:** [yaxpatel6300@gmail.com](mailto:yaxpatel6300@gmail.com)
+- **GitHub:** [Syntax-Surfer-1](https://github.com/Syntax-Surfer-1) 🌐
 
 ---
 

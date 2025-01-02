@@ -1,4 +1,4 @@
-# ESP32 Object # Detection and Servo Control Project 🎯🎯🎯
+# ESP32 Object Detection and Servo Control Project 🎯🎯🎯
 
 ## Build Information 🎉🎉🎉
 

@@ -1,22 +1,14 @@
 /*
- * Build-1 
- * Build Date: 2025-01-01
- * Build Time: 11:45 AM
+ * Build-2
+ * Build Date: 2025-01-02
+ * Build Time: 02:30 PM
  *
  * Code Summary:
- * - This program utilizes an ESP32 to control a servo and three ultrasonic sensors (front, left, and right).
- * - The center (front) sensor continuously scans for objects within a threshold distance.
- * - When an object is detected, the servo moves left, right, and back to the center while scanning each direction.
- * - The center sensor continues to monitor during the left and right scans, and the results are displayed on the serial monitor.
- * - After completing the left and right scans, the servo returns to the center position, waits for a configurable delay (2 seconds), and resets the detection flag.
- * 
- * Libraries Used:
- * - ESP32Servo: For controlling the servo motor.
- * - NewPing: For ultrasonic sensor readings.
- * 
- * Adjustable Parameters:
- * - OBJECT_THRESHOLD_FRONT, OBJECT_THRESHOLD_LEFT, OBJECT_THRESHOLD_RIGHT: Distance threshold (in cm) for detecting objects.
- * - OBJECT_DETECTION_DELAY: Delay (in seconds) after completing the scan and before restarting the detection.
+ * - Added virtual 2-wheel simulation displayed on the serial terminal.
+ * - Enhanced object detection logic:
+ *   - Moves forward if no object is within the threshold distance.
+ *   - Stops and decides a direction based on the object's position (left, right, or all sides).
+ *   - Simulates turning left or right and reversing when needed.
  */
 
 #include <ESP32Servo.h>   // Correct library name
@@ -47,7 +39,7 @@ int OBJECT_THRESHOLD_LEFT = 25;  // in cm
 int OBJECT_THRESHOLD_RIGHT = 25; // in cm
 
 // Delay after object detection (adjustable)
-float OBJECT_DETECTION_DELAY = 2.0; // in seconds
+float OBJECT_DETECTION_DELAY = 10.0; // in seconds
 
 // Timing variables for servo movements
 unsigned long lastServoMoveTime = 0;
@@ -62,6 +54,10 @@ NewPing sonarRight(TRIG_PIN_RIGHT, ECHO_PIN_RIGHT, MAX_DISTANCE);
 Servo myservo;
 
 bool objectDetected = false; // Flag to track if object is detected
+
+// Wheel status variables for simulation
+bool leftWheelForward = false;
+bool rightWheelForward = false;
 
 void setup() {
   Serial.begin(115200); // Start serial communication
@@ -96,51 +92,99 @@ void loop() {
   Serial.println(" cm");
   Serial.println("======================");
 
-  // If object is detected, stop scanning and perform servo movements
+  // If no object is detected, move forward
   if (!objectDetected) {
-    objectDetected = (distanceFront <= OBJECT_THRESHOLD_FRONT || distanceLeft <= OBJECT_THRESHOLD_LEFT || distanceRight <= OBJECT_THRESHOLD_RIGHT);
+    if (distanceFront > OBJECT_THRESHOLD_FRONT && distanceLeft > OBJECT_THRESHOLD_LEFT && distanceRight > OBJECT_THRESHOLD_RIGHT) {
+      // Move forward: Both wheels forward
+      leftWheelForward = true;
+      rightWheelForward = true;
+      Serial.println("Left Wheel: Forward, Right Wheel: Forward");
+    }
   }
 
-  if (objectDetected) {
-    // Stop scanning and perform movements (non-blocking)
-    Serial.println("Object detected! Moving servo...");
-    
-    // Move the servo to the left position and scan
+  // If object detected, stop and start scanning
+  if (distanceFront <= OBJECT_THRESHOLD_FRONT || distanceLeft <= OBJECT_THRESHOLD_LEFT || distanceRight <= OBJECT_THRESHOLD_RIGHT) {
+    objectDetected = true;
+
+    // Stop moving forward
+    leftWheelForward = false;
+    rightWheelForward = false;
+    Serial.println("Object detected! Stopping forward movement.");
+
+    // Scan using the servo motor
+    // Move servo to the left to scan the left area
     myservo.write(SERVO_LEFT);
-    delay(500);  // Wait for servo to stabilize
-    int leftScanDistance = sonarLeft.ping_cm();
-    if (leftScanDistance == 0) leftScanDistance = MAX_DISTANCE;
+    delay(500);  // Wait for the servo to reach the position
+    int leftScanDistance = sonarFront.ping_cm();  // Measure front distance from left position
     Serial.print("Left Scan Distance: ");
     Serial.println(leftScanDistance);
 
-    // During left scan, the center sensor (front sensor) is also reading:
-    int frontScanDuringLeft = sonarFront.ping_cm();
-    if (frontScanDuringLeft == 0) frontScanDuringLeft = MAX_DISTANCE;
-    Serial.print("Center Sensor (Front) During Left Scan: ");
-    Serial.println(frontScanDuringLeft);
-
-    // Move the servo to the right position and scan
+    // Move servo to the right to scan the right area
     myservo.write(SERVO_RIGHT);
-    delay(500);  // Wait for servo to stabilize
-    int rightScanDistance = sonarRight.ping_cm();
-    if (rightScanDistance == 0) rightScanDistance = MAX_DISTANCE;
+    delay(500);  // Wait for the servo to reach the position
+    int rightScanDistance = sonarFront.ping_cm();  // Measure front distance from right position
     Serial.print("Right Scan Distance: ");
     Serial.println(rightScanDistance);
 
-    // During right scan, the center sensor (front sensor) is also reading:
-    int frontScanDuringRight = sonarFront.ping_cm();
-    if (frontScanDuringRight == 0) frontScanDuringRight = MAX_DISTANCE;
-    Serial.print("Center Sensor (Front) During Right Scan: ");
-    Serial.println(frontScanDuringRight);
-
-    // Return the servo to the center
+    // Return servo to the middle position
     myservo.write(SERVO_MIDDLE);
-    delay(500);  // Wait for servo to stabilize
+    delay(500);  // Wait for the servo to return
 
-    // Delay for 2 seconds after returning to the center
-    delay(OBJECT_DETECTION_DELAY * 1000); // Convert seconds to milliseconds
+    // Scan for object detection at front, left, and right sensors
+    if (leftScanDistance <= OBJECT_THRESHOLD_LEFT) {
+      // Object detected on the left
+      Serial.println("Object detected on the left. Turning right.");
+      leftWheelForward = true;  // Spin left wheel forward
+      rightWheelForward = false;  // Spin right wheel backward
+      Serial.println("Left Wheel: Forward, Right Wheel: Backward");
+    }
+    else if (rightScanDistance <= OBJECT_THRESHOLD_RIGHT) {
+      // Object detected on the right
+      Serial.println("Object detected on the right. Turning left.");
+      leftWheelForward = false;  // Spin left wheel backward
+      rightWheelForward = true;  // Spin right wheel forward
+      Serial.println("Left Wheel: Backward, Right Wheel: Forward");
+    }
+    else {
+      // No objects detected on the left or right, but object detected at the front
+      // Check if the front sensors detect anything as well
+      if (distanceFront <= OBJECT_THRESHOLD_FRONT) {
+        Serial.println("Object detected directly in front. Reversing and changing direction.");
+        leftWheelForward = false;
+        rightWheelForward = false;
+        Serial.println("Left Wheel: Backward, Right Wheel: Backward");
+        delay(1000);  // Reverse for 1 second
 
-    // Reset object detection flag after scanning
-    objectDetected = false;
+        // Turn 180 degrees
+        myservo.write(SERVO_LEFT);
+        delay(500);  // Wait for the servo to reach the left position
+        myservo.write(SERVO_MIDDLE);  // Return to middle position
+        Serial.println("Turning 180 degrees.");
+        delay(500);
+
+        // After turning, continue moving forward
+        leftWheelForward = true;
+        rightWheelForward = true;
+        Serial.println("Left Wheel: Forward, Right Wheel: Forward");
+      }
+    }
+
+    // Delay for 2 seconds before scanning again
+    delay(OBJECT_DETECTION_DELAY * 1000);
+    objectDetected = false;  // Reset object detection flag
+  }
+
+  // Print the wheel status to simulate movement
+  if (leftWheelForward && rightWheelForward) {
+    Serial.println("Left Wheel: Forward, Right Wheel: Forward");
+  }
+  else if (!leftWheelForward && !rightWheelForward) {
+    Serial.println("Left Wheel: Backward, Right Wheel: Backward");
+  }
+  else if (leftWheelForward && !rightWheelForward) {
+    Serial.println("Left Wheel: Forward, Right Wheel: Backward");
+  }
+  else if (!leftWheelForward && rightWheelForward) {
+    Serial.println("Left Wheel: Backward, Right Wheel: Forward");
   }
 }

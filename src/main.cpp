@@ -10,7 +10,7 @@
  *   - Stops and decides a direction based on the object's position (left, right, or all sides).
  *   - Simulates turning left or right and reversing when needed.
  */
-#include <ESP32Servo.h>   // Correct library name
+#include <ESP32Servo.h>
 #include <NewPing.h>
 
 // Pin assignments for ultrasonic sensors
@@ -27,22 +27,13 @@
 // Maximum distance (in cm) for ultrasonic sensors
 #define MAX_DISTANCE 200
 
-// Servo positions
-#define SERVO_MIDDLE 90
-#define SERVO_LEFT 140
-#define SERVO_RIGHT 40
-
 // Distance threshold for triggering servo movement (adjustable)
 int OBJECT_THRESHOLD_FRONT = 25; // in cm
 int OBJECT_THRESHOLD_LEFT = 25;  // in cm
 int OBJECT_THRESHOLD_RIGHT = 25; // in cm
 
 // Delay after object detection (adjustable)
-float OBJECT_DETECTION_DELAY = 10.0; // in seconds
-
-// Timing variables for servo movements
-unsigned long lastServoMoveTime = 0;
-unsigned long servoMoveInterval = 1000; // Move servo every 1 second if needed
+float OBJECT_DETECTION_DELAY = 2.0; // Delay for stability
 
 // Initialize ultrasonic sensors
 NewPing sonarFront(TRIG_PIN_FRONT, ECHO_PIN_FRONT, MAX_DISTANCE);
@@ -52,19 +43,17 @@ NewPing sonarRight(TRIG_PIN_RIGHT, ECHO_PIN_RIGHT, MAX_DISTANCE);
 // Initialize servo
 Servo myservo;
 
-bool objectDetected = false; // Flag to track if object is detected
+// Function prototype for scanLeftRight()
+void scanLeftRight();
 
 void setup() {
   Serial.begin(115200); // Start serial communication
   myservo.attach(SERVO_PIN); // Attach servo to pin
-  myservo.write(SERVO_MIDDLE); // Move servo to middle position
+  myservo.write(90); // Set servo to middle position (initially facing front)
 }
 
 void loop() {
-  // Get current time
-  unsigned long currentMillis = millis();
-
-  // Read distances from all three ultrasonic sensors
+  // Continually read distances from all three ultrasonic sensors
   int distanceFront = sonarFront.ping_cm();
   int distanceLeft = sonarLeft.ping_cm();
   int distanceRight = sonarRight.ping_cm();
@@ -74,7 +63,7 @@ void loop() {
   if (distanceLeft == 0) distanceLeft = MAX_DISTANCE;
   if (distanceRight == 0) distanceRight = MAX_DISTANCE;
 
-  // Print sensor readings (optional)
+  // Print sensor readings (optional for debugging)
   Serial.println("======================");
   Serial.print("Front Distance (Center): ");
   Serial.print(distanceFront);
@@ -87,64 +76,99 @@ void loop() {
   Serial.println(" cm");
   Serial.println("======================");
 
-  // Check if object is detected based on any sensor
-  if (!objectDetected) {
-    objectDetected = (distanceFront <= OBJECT_THRESHOLD_FRONT || distanceLeft <= OBJECT_THRESHOLD_LEFT || distanceRight <= OBJECT_THRESHOLD_RIGHT);
+  // Handle obstacle detection in front
+  if (distanceFront <= OBJECT_THRESHOLD_FRONT) {
+    // Object detected in front: Stop and scan
+    Serial.println("Object detected in front. Stopping...");
+    stopMovement();
+
+    // Perform left-right scan
+    scanLeftRight();
+    delay(OBJECT_DETECTION_DELAY * 1000); // Add delay for stability
   }
+  else {
+    // No object in front, check for objects on left or right
+    if (distanceLeft <= OBJECT_THRESHOLD_LEFT && distanceRight <= OBJECT_THRESHOLD_RIGHT) {
+      // Objects detected on both sides: Stop and scan
+      Serial.println("Object detected on both sides. Stopping...");
+      stopMovement();
 
-  if (objectDetected) {
-    // Stop moving forward
-    Serial.println("Object detected! Stopping forward movement.");
-
-    // Scan for objects on the left, right, and center using the servo
-    myservo.write(SERVO_LEFT);
-    delay(500);  // Wait for servo to stabilize
-    int leftScanDistance = sonarLeft.ping_cm();
-    if (leftScanDistance == 0) leftScanDistance = MAX_DISTANCE;
-    Serial.print("Left Scan Distance: ");
-    Serial.println(leftScanDistance);
-
-    myservo.write(SERVO_RIGHT);
-    delay(500);  // Wait for servo to stabilize
-    int rightScanDistance = sonarRight.ping_cm();
-    if (rightScanDistance == 0) rightScanDistance = MAX_DISTANCE;
-    Serial.print("Right Scan Distance: ");
-    Serial.println(rightScanDistance);
-
-    myservo.write(SERVO_MIDDLE);
-    delay(500);  // Wait for servo to stabilize
-
-    // Check if all sensors detect an object (reverse condition)
-    if (distanceFront <= OBJECT_THRESHOLD_FRONT && distanceLeft <= OBJECT_THRESHOLD_LEFT && distanceRight <= OBJECT_THRESHOLD_RIGHT) {
-      Serial.println("Object detected on all sides. Reversing and changing direction.");
-      // Simulate reversing
-      Serial.println("Left Wheel: Backward, Right Wheel: Backward");
-
-      // Change direction randomly or 180 degrees (for simulation purposes, print message)
-      Serial.println("Changing direction randomly or turning 180 degrees...");
-    }
-    else if (distanceRight <= OBJECT_THRESHOLD_RIGHT) {
-      Serial.println("Object detected on the right. Turning left.");
-      // Simulate turning left
-      Serial.println("Left Wheel: Forward, Right Wheel: Backward");
+      // Perform left-right scan
+      scanLeftRight();
+      delay(OBJECT_DETECTION_DELAY * 1000); // Add delay for stability
     }
     else if (distanceLeft <= OBJECT_THRESHOLD_LEFT) {
-      Serial.println("Object detected on the left. Turning right.");
-      // Simulate turning right
-      Serial.println("Left Wheel: Backward, Right Wheel: Forward");
+      // Object detected on left: Turn right
+      Serial.println("Object detected on left. Turning right...");
+      turnRight();
     }
-    else if (leftScanDistance <= OBJECT_THRESHOLD_LEFT && rightScanDistance <= OBJECT_THRESHOLD_RIGHT) {
-      // If object detected on both sides (left and right)
-      Serial.println("Object detected on both left and right. Reversing and changing direction.");
-      // Simulate reversing
-      Serial.println("Left Wheel: Backward, Right Wheel: Backward");
-
-      // Change direction randomly or 180 degrees (for simulation purposes, print message)
-      Serial.println("Changing direction randomly or turning 180 degrees...");
+    else if (distanceRight <= OBJECT_THRESHOLD_RIGHT) {
+      // Object detected on right: Turn left
+      Serial.println("Object detected on right. Turning left...");
+      turnLeft();
     }
-
-    // Reset the object detection flag
-    objectDetected = false;
-    delay(OBJECT_DETECTION_DELAY * 1000); // Wait for the next scan
+    else {
+      // No objects detected: Move forward
+      Serial.println("No objects detected. Moving forward...");
+      moveForward();
+    }
   }
+
+  // Short delay to avoid flooding the serial output
+  delay(50);
+}
+
+void scanLeftRight() {
+  // Move the servo to scan left
+  myservo.write(45); // Turn the servo left (45 degrees)
+  delay(250); // Shorter delay for quicker response
+  int leftScan = sonarLeft.ping_cm();
+  if (leftScan == 0) leftScan = MAX_DISTANCE; // Handle no echo
+
+  // Move the servo to scan right
+  myservo.write(135); // Turn the servo right (135 degrees)
+  delay(250); // Shorter delay for quicker response
+  int rightScan = sonarRight.ping_cm();
+  if (rightScan == 0) rightScan = MAX_DISTANCE; // Handle no echo
+
+  // Decision-making based on scanned distances
+  if (leftScan > rightScan) {
+    // If the left scan distance is greater, go right
+    Serial.println("Left side is clear, turning right...");
+    turnRight();
+  } else if (rightScan > leftScan) {
+    // If the right scan distance is greater, go left
+    Serial.println("Right side is clear, turning left...");
+    turnLeft();
+  } else {
+    // If both sides are equally clear, choose one side to turn
+    Serial.println("Both sides are equally clear. Turning left by default.");
+    turnLeft();
+  }
+
+  // Revert to the center after scanning
+  myservo.write(90); // Move the servo back to the middle position
+  delay(250); // Shorter delay for quicker response
+}
+
+void stopMovement() {
+  // Stop both wheels (simulated for now)
+  Serial.println("Left Wheel: Stop, Right Wheel: Stop");
+}
+
+void moveForward() {
+  // Move both wheels forward (simulated for now)
+  Serial.println("Left Wheel: Forward, Right Wheel: Forward");
+}
+
+void turnLeft() {
+  // Turn left (right wheel forward, left wheel backward)
+  Serial.println("Left Wheel: Backward, Right Wheel: Forward");
+  delay(500); // Turn left for 0.5 second
+}
+
+void turnRight() {
+  // Turn right (left wheel forward, right wheel backward)
+  Serial.println("Left Wheel: Forward, Right Wheel: Backward");
+  delay(500); // Turn right for 0.5 second
 }

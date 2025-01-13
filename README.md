@@ -14,7 +14,7 @@ This project implements an ESP32-based system for object detection and servo con
 - **Decision-Making**: After scanning, the robot decides which direction (left or right) to move based on the distance readings from the sensors.
 - **Adjustable Parameters**: 
   - **LOOK_ANGLE**: The customizable angle for scanning left and right.
-  - **OBJECT_THRESHOLD_* (Front, Left, Right)**: Distance thresholds for object detection.
+  - **OBJECT_THRESHOLD_(Front, Left, Right)**: Distance thresholds for object detection.
   - **OBJECT_DETECTION_DELAY**: Configurable delay after scanning to ensure stability before the next cycle.
 - **Servo Control**: The servo motor moves to predefined positions (left, right, center) during scanning, with a pause at each direction for accurate detection.
 - **Motor Driver Integration**: L298N motor driver used to control the robot's movement, including forward, reverse, and turning.

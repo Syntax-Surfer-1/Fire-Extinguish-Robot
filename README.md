@@ -2,12 +2,12 @@
 
 ## Build Information 🎉🎉🎉
 
-### Build-2 🎯
-- **Build Date:** 02-01-2025
-- **Build Time:** 4:50 PM
+### Build-3 🎯
+- **Build Date:** 01-13-2025
+- **Build Time:** 8:20 PM
 
 ### Code Summary 🛠️
-This project implements an ESP32-based system for object detection and servo control using ultrasonic sensors. Below are the key features:
+This project implements an ESP32-based system for object detection and servo control using ultrasonic sensors and a motor driver for wheel control. Below are the key features:
 
 - **Object Detection**: Three ultrasonic sensors (front, left, and right) detect objects within predefined threshold distances.
 - **Reverse and Scan**: Upon detecting an object in front, the robot reverses, scans left and right with the servo motor, and returns to the center position.
@@ -17,6 +17,7 @@ This project implements an ESP32-based system for object detection and servo con
   - **OBJECT_THRESHOLD_* (Front, Left, Right)**: Distance thresholds for object detection.
   - **OBJECT_DETECTION_DELAY**: Configurable delay after scanning to ensure stability before the next cycle.
 - **Servo Control**: The servo motor moves to predefined positions (left, right, center) during scanning, with a pause at each direction for accurate detection.
+- **Motor Driver Integration**: L298N motor driver used to control the robot's movement, including forward, reverse, and turning.
 
 ### Libraries Used 📚
 - **ESP32Servo**: For controlling the servo motor.
@@ -25,6 +26,7 @@ This project implements an ESP32-based system for object detection and servo con
 ### Hardware Components 🧰
 - **Ultrasonic Sensors (HC-SR04)**: Front, left, and right sensors for object detection.
 - **Servo Motor**: Controls the scanning mechanism of the robot.
+- **L298N Motor Driver**: Controls the movement of the robot's wheels.
 - **ESP32 Development Board**: The brain of the system that processes sensor data and controls movement.
 
 ---
@@ -49,6 +51,12 @@ This project implements an ESP32-based system for object detection and servo con
 - **VCC Pin**: Connect to 5V (or external power source if required for high torque)
 - **GND Pin**: Connect to ESP32 GND
 
+#### Motor Driver (L298N):
+- **OUT-1**: GPIO 27
+- **OUT-2**: GPIO 26
+- **OUT-3**: GPIO 14
+- **OUT-4**: GPIO 12
+
 #### ESP32 Power Supply:
 - **USB Connection**: Use a micro-USB cable to power the ESP32 development board.
 - **External Power Source**: Ensure proper voltage regulation if using an external power supply. 💡
@@ -62,7 +70,8 @@ This project implements an ESP32-based system for object detection and servo con
    - The system reverses for a short duration to avoid collision.
    - The servo motor scans left and right to detect the position of the obstacle and then returns to the center.
 3. **Decision-Making**: The system checks the distance of the left and right sensors, then decides the best direction to move based on the results.
-4. **Continual Operation**: After scanning and deciding the direction, the system waits for the next object detection cycle.
+4. **Motor Control**: The L298N motor driver is used to control the robot's wheels to move forward, backward, or turn left/right based on the system's decision.
+5. **Continual Operation**: After scanning and deciding the direction, the system waits for the next object detection cycle.
 
 ---
 

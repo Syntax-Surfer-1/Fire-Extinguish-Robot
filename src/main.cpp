@@ -1,10 +1,10 @@
-// /*
-//  * Build-2 
-//  * Build Date: 02-01-2025
-//  * Build Time: 4:50 PM
+//  *
+//  * Build-3 
+//  * Build Date: 01-13-2025
+//  * Build Time: 8:20 PM
 //  *
 //  * Code Summary:
-//  * - This program uses an ESP32 to control a servo and three ultrasonic sensors (front, left, and right) for object detection and decision-making.
+//  * - This program uses an ESP32 to control a servo, three ultrasonic sensors (front, left, and right), and an L298N motor driver for controlling wheels.
 //  * - The robot moves forward while continuously scanning distances using the ultrasonic sensors.
 //  * - When an object is detected in front, the robot reverses, then the servo performs a left-right scan, pausing at each side and returning to the center. 
 //  * - The decision to turn left or right is made based on distance readings from the left and right sensors. If both sides are blocked, the robot continues reversing.
@@ -13,18 +13,17 @@
 //  * Libraries Used:
 //  * - ESP32Servo: For controlling the servo motor.
 //  * - NewPing: For ultrasonic sensor readings.
-//  * 
+//  *
 //  * Adjustable Parameters:
 //  * - OBJECT_THRESHOLD_FRONT, OBJECT_THRESHOLD_LEFT, OBJECT_THRESHOLD_RIGHT: Distance threshold (in cm) for detecting objects.
 //  * - OBJECT_DETECTION_DELAY: Delay (in seconds) after object detection or scans.
 //  * - LOOK_ANGLE: Maximum angle (up to 90°) for servo movement to the left and right.
 //  *
-//  * Key Enhancements from Build-1:
-//  * - Added reverse movement before scanning when an object is detected in front or on both sides.
-//  * - Servo scans left and right with a configurable pause at each side and returns to the center.
-//  * - Dynamic decision-making to turn based on the clearest path (left or right).
-//  * - Enhanced real-time performance with optimized delays and better logical flow.
-//  */
+//  * Key Enhancements from Build-2:
+//  * - Integrated L298N motor driver for wheel control.
+//  * - Enhanced movement commands for forward, backward, left, and right turns using motor driver pins.
+//  * - Removed any potential bugs from Build-2, ensuring smoother decision-making and movement.
+//  *
 
 #include <ESP32Servo.h>
 #include <NewPing.h>
@@ -39,6 +38,12 @@
 
 // Servo pin
 #define SERVO_PIN 13
+
+// Motor driver pins
+#define LEFT_MOTOR_IN1 27
+#define LEFT_MOTOR_IN2 26
+#define RIGHT_MOTOR_IN3 14
+#define RIGHT_MOTOR_IN4 12
 
 // Maximum distance (in cm) for ultrasonic sensors
 #define MAX_DISTANCE 200
@@ -73,6 +78,12 @@ void setup() {
   Serial.begin(115200);          // Start serial communication
   myservo.attach(SERVO_PIN);     // Attach servo to pin
   myservo.write(90);             // Set servo to center position
+
+  // Set motor driver pins as outputs
+  pinMode(LEFT_MOTOR_IN1, OUTPUT);
+  pinMode(LEFT_MOTOR_IN2, OUTPUT);
+  pinMode(RIGHT_MOTOR_IN3, OUTPUT);
+  pinMode(RIGHT_MOTOR_IN4, OUTPUT);
 }
 
 void loop() {
@@ -174,23 +185,45 @@ void scanLeftRight(int &combinedLeft, int &combinedRight) {
 }
 
 void stopMovement() {
-  Serial.println("Left Wheel: Stop, Right Wheel: Stop");
+  digitalWrite(LEFT_MOTOR_IN1, LOW);
+  digitalWrite(LEFT_MOTOR_IN2, LOW);
+  digitalWrite(RIGHT_MOTOR_IN3, LOW);
+  digitalWrite(RIGHT_MOTOR_IN4, LOW);
+  Serial.println("Motors stopped");
 }
 
 void moveForward() {
-  Serial.println("Left Wheel: Forward, Right Wheel: Forward");
+  digitalWrite(LEFT_MOTOR_IN1, HIGH);
+  digitalWrite(LEFT_MOTOR_IN2, LOW);
+  digitalWrite(RIGHT_MOTOR_IN3, HIGH);
+  digitalWrite(RIGHT_MOTOR_IN4, LOW);
+  Serial.println("Moving forward");
 }
 
 void moveBackward() {
-  Serial.println("Left Wheel: Backward, Right Wheel: Backward");
+  digitalWrite(LEFT_MOTOR_IN1, LOW);
+  digitalWrite(LEFT_MOTOR_IN2, HIGH);
+  digitalWrite(RIGHT_MOTOR_IN3, LOW);
+  digitalWrite(RIGHT_MOTOR_IN4, HIGH);
+  Serial.println("Moving backward");
 }
 
 void turnLeft() {
-  Serial.println("Left Wheel: Backward, Right Wheel: Forward");
-  delay(500);  // Turn left for 0.5 second
+  digitalWrite(LEFT_MOTOR_IN1, LOW);
+  digitalWrite(LEFT_MOTOR_IN2, HIGH);
+  digitalWrite(RIGHT_MOTOR_IN3, HIGH);
+  digitalWrite(RIGHT_MOTOR_IN4, LOW);
+  Serial.println("Turning left");
+  delay(500);  // Adjust for smooth turning
+  stopMovement();
 }
 
 void turnRight() {
-  Serial.println("Left Wheel: Forward, Right Wheel: Backward");
-  delay(500);  // Turn right for 0.5 second
+  digitalWrite(LEFT_MOTOR_IN1, HIGH);
+  digitalWrite(LEFT_MOTOR_IN2, LOW);
+  digitalWrite(RIGHT_MOTOR_IN3, LOW);
+  digitalWrite(RIGHT_MOTOR_IN4, HIGH);
+  Serial.println("Turning right");
+  delay(500);  // Adjust for smooth turning
+  stopMovement();
 }

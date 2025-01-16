@@ -28,11 +28,35 @@
 #include <ESP32Servo.h>
 #include <NewPing.h>
 
+
+// Ultrasonic Sensors (HC-SR04):
+//   Front Sensor:
+//     TRIG Pin: GPIO 18
+//     ECHO Pin: GPIO 19
+//   Left Sensor:
+//     TRIG Pin: GPIO 15
+//     ECHO Pin: GPIO 4
+//   Right Sensor:
+//     TRIG Pin: GPIO 23
+//     ECHO Pin: GPIO 22
+
+// Servo Motor:
+//   Signal Pin: GPIO 13
+//   VCC Pin: Connect to 5V (or external power source if required for high torque)
+//   GND Pin: Connect to ESP32 GND
+
+// Motor Driver (L298N):
+//  LEFT_MOTOR_IN1 = OUT-1: GPIO 12
+//  LEFT_MOTOR_IN2 = OUT-2: GPIO 14
+//  RIGHT_MOTOR_IN3 = OUT-3: GPIO 27
+//  RIGHT_MOTOR_IN4 = OUT-4: GPIO 26
+
+
 // Pin assignments for ultrasonic sensors
-#define TRIG_PIN_FRONT 15
-#define ECHO_PIN_FRONT 4
-#define TRIG_PIN_LEFT 18
-#define ECHO_PIN_LEFT 19
+#define TRIG_PIN_FRONT 18
+#define ECHO_PIN_FRONT 19
+#define TRIG_PIN_LEFT 15
+#define ECHO_PIN_LEFT 4
 #define TRIG_PIN_RIGHT 23
 #define ECHO_PIN_RIGHT 22
 
@@ -40,10 +64,10 @@
 #define SERVO_PIN 13
 
 // Motor driver pins
-#define LEFT_MOTOR_IN1 27
-#define LEFT_MOTOR_IN2 26
-#define RIGHT_MOTOR_IN3 14
-#define RIGHT_MOTOR_IN4 12
+#define LEFT_MOTOR_IN1 12
+#define LEFT_MOTOR_IN2 14
+#define RIGHT_MOTOR_IN3 27
+#define RIGHT_MOTOR_IN4 26
 
 // Maximum distance (in cm) for ultrasonic sensors
 #define MAX_DISTANCE 200

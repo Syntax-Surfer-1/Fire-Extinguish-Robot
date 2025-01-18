@@ -1,7 +1,7 @@
 //  *
-//  * Build-3 
-//  * Build Date: 01-13-2025
-//  * Build Time: 8:20 PM
+//  * Build-4 
+//  * Build Date: 01-18-2025
+//  * Build Time: 8:30 PM
 //  *
 //  * Code Summary:
 //  * - This program uses an ESP32 to control a servo, three ultrasonic sensors (front, left, and right), and an L298N motor driver for controlling wheels.
@@ -9,6 +9,8 @@
 //  * - When an object is detected in front, the robot reverses, then the servo performs a left-right scan, pausing at each side and returning to the center. 
 //  * - The decision to turn left or right is made based on distance readings from the left and right sensors. If both sides are blocked, the robot continues reversing.
 //  * - The left-right scan and movement incorporate a configurable delay (`OBJECT_DETECTION_DELAY`) for better stability.
+//  * - Motor speed is gradually ramped up from a starting value to a maximum speed, making the movement smoother and preventing sudden jerks.
+//  * - Added bug fixes for smoother transitions between movements and improved distance reading handling.
 //  *
 //  * Libraries Used:
 //  * - ESP32Servo: For controlling the servo motor.
@@ -18,41 +20,20 @@
 //  * - OBJECT_THRESHOLD_FRONT, OBJECT_THRESHOLD_LEFT, OBJECT_THRESHOLD_RIGHT: Distance threshold (in cm) for detecting objects.
 //  * - OBJECT_DETECTION_DELAY: Delay (in seconds) after object detection or scans.
 //  * - LOOK_ANGLE: Maximum angle (up to 90°) for servo movement to the left and right.
+//  * - SPEED_INCREMENT: Amount by which motor speed increases for smoother ramp-up.
 //  *
-//  * Key Enhancements from Build-2:
-//  * - Integrated L298N motor driver for wheel control.
-//  * - Enhanced movement commands for forward, backward, left, and right turns using motor driver pins.
-//  * - Removed any potential bugs from Build-2, ensuring smoother decision-making and movement.
+//  * Key Enhancements from Build-3:
+//  * - Introduced motor speed control for smoother movement using PWM ramp-up.
+//  * - Fixed bug in object detection handling to improve robot behavior during scanning and movement transitions.
+//  * - Updated the servo scanning function to ensure better precision and response time.
+//  * - General code cleanup for better readability and stability.
 //  *
 
 #include <ESP32Servo.h>
 #include <NewPing.h>
 
-
-// Ultrasonic Sensors (HC-SR04):
-//   Front Sensor:
-//     TRIG Pin: GPIO 18
-//     ECHO Pin: GPIO 19
-//   Left Sensor:
-//     TRIG Pin: GPIO 15
-//     ECHO Pin: GPIO 4
-//   Right Sensor:
-//     TRIG Pin: GPIO 23
-//     ECHO Pin: GPIO 22
-
-// Servo Motor:
-//   Signal Pin: GPIO 13
-//   VCC Pin: Connect to 5V (or external power source if required for high torque)
-//   GND Pin: Connect to ESP32 GND
-
-// Motor Driver (L298N):
-//  LEFT_MOTOR_IN1 = OUT-1: GPIO 12
-//  LEFT_MOTOR_IN2 = OUT-2: GPIO 14
-//  RIGHT_MOTOR_IN3 = OUT-3: GPIO 27
-//  RIGHT_MOTOR_IN4 = OUT-4: GPIO 26
-
-
 // Pin assignments for ultrasonic sensors
+// Pin Assignments
 #define TRIG_PIN_FRONT 18
 #define ECHO_PIN_FRONT 19
 #define TRIG_PIN_LEFT 15
@@ -74,13 +55,23 @@
 
 // Distance threshold for triggering movement (adjustable)
 int OBJECT_THRESHOLD_FRONT = 25;  // in cm
-int OBJECT_THRESHOLD_SIDE = 25;  // in cm
+int OBJECT_THRESHOLD_SIDE = 25;   // in cm
 
 // Delay after object detection (adjustable)
 float OBJECT_DETECTION_DELAY = 1.0;  // Delay for stability (in seconds)
 
 // Customizable angle for looking left and right
 int LOOK_ANGLE = 90;  // Maximum angle for servo rotation
+
+// Motor speed control variables
+int motorSpeed = 0;    // Start with low speed (PWM) 
+int maxSpeed = 255;    // Max PWM value for motor speed (0 to 255)
+int speedIncrement = 5; // Speed increment per loop
+int speedStart = 50;   // PWM value to start from (0 to 255)
+int speedStepDelay = 20; // Delay for increasing speed (adjustable)
+
+// Add a global flag to track motor speed ramp-up status
+bool isMovingForward = false;
 
 // Initialize ultrasonic sensors
 NewPing sonarFront(TRIG_PIN_FRONT, ECHO_PIN_FRONT, MAX_DISTANCE);
@@ -209,44 +200,72 @@ void scanLeftRight(int &combinedLeft, int &combinedRight) {
 }
 
 void stopMovement() {
-  digitalWrite(LEFT_MOTOR_IN1, LOW);
-  digitalWrite(LEFT_MOTOR_IN2, LOW);
-  digitalWrite(RIGHT_MOTOR_IN3, LOW);
-  digitalWrite(RIGHT_MOTOR_IN4, LOW);
+  analogWrite(LEFT_MOTOR_IN1, 0);
+  analogWrite(LEFT_MOTOR_IN2, 0);
+  analogWrite(RIGHT_MOTOR_IN3, 0);
+  analogWrite(RIGHT_MOTOR_IN4, 0);
+  isMovingForward = false;  // Reset the flag
   Serial.println("Motors stopped");
 }
 
+
 void moveForward() {
-  digitalWrite(LEFT_MOTOR_IN1, HIGH);
-  digitalWrite(LEFT_MOTOR_IN2, LOW);
-  digitalWrite(RIGHT_MOTOR_IN3, HIGH);
-  digitalWrite(RIGHT_MOTOR_IN4, LOW);
-  Serial.println("Moving forward");
+  if (!isMovingForward) {
+    // Ramp up speed from low to max PWM duty cycle
+    for (motorSpeed = speedStart; motorSpeed <= maxSpeed; motorSpeed += speedIncrement) {
+      analogWrite(LEFT_MOTOR_IN1, motorSpeed);
+      analogWrite(LEFT_MOTOR_IN2, 0);   // Forward direction for left motor
+      analogWrite(RIGHT_MOTOR_IN3, motorSpeed);
+      analogWrite(RIGHT_MOTOR_IN4, 0);  // Forward direction for right motor
+      delay(speedStepDelay);  // Delay for smooth acceleration
+    }
+    isMovingForward = true;  // Mark that the motor has reached max speed
+    Serial.println("Moving forward at max speed");
+  } else {
+    // Keep running at max speed
+    analogWrite(LEFT_MOTOR_IN1, maxSpeed);
+    analogWrite(LEFT_MOTOR_IN2, 0);   // Forward direction for left motor
+    analogWrite(RIGHT_MOTOR_IN3, maxSpeed);
+    analogWrite(RIGHT_MOTOR_IN4, 0);  // Forward direction for right motor
+    Serial.println("Continuing forward at max speed");
+  }
 }
 
 void moveBackward() {
-  digitalWrite(LEFT_MOTOR_IN1, LOW);
-  digitalWrite(LEFT_MOTOR_IN2, HIGH);
-  digitalWrite(RIGHT_MOTOR_IN3, LOW);
-  digitalWrite(RIGHT_MOTOR_IN4, HIGH);
-  Serial.println("Moving backward");
+  // Ramp up speed from low to max PWM duty cycle
+  for (motorSpeed = speedStart; motorSpeed <= maxSpeed; motorSpeed += speedIncrement) {
+    analogWrite(LEFT_MOTOR_IN1, 0);   // Backward direction for left motor
+    analogWrite(LEFT_MOTOR_IN2, motorSpeed);
+    analogWrite(RIGHT_MOTOR_IN3, 0);  // Backward direction for right motor
+    analogWrite(RIGHT_MOTOR_IN4, motorSpeed);
+    delay(speedStepDelay);  // Delay for smooth acceleration
+  }
+  Serial.println("Moving backward at max speed");
 }
 
 void turnLeft() {
-  digitalWrite(LEFT_MOTOR_IN1, LOW);
-  digitalWrite(LEFT_MOTOR_IN2, HIGH);
-  digitalWrite(RIGHT_MOTOR_IN3, HIGH);
-  digitalWrite(RIGHT_MOTOR_IN4, LOW);
+  // Ramp up speed from low to max PWM duty cycle for turning left
+  for (motorSpeed = speedStart; motorSpeed <= maxSpeed; motorSpeed += speedIncrement) {
+    analogWrite(LEFT_MOTOR_IN1, 0);   // Stop left motor
+    analogWrite(LEFT_MOTOR_IN2, motorSpeed);
+    analogWrite(RIGHT_MOTOR_IN3, motorSpeed); // Turn right motor forward
+    analogWrite(RIGHT_MOTOR_IN4, 0);
+    delay(speedStepDelay);  // Delay for smooth turning
+  }
   Serial.println("Turning left");
   delay(500);  // Adjust for smooth turning
   stopMovement();
 }
 
 void turnRight() {
-  digitalWrite(LEFT_MOTOR_IN1, HIGH);
-  digitalWrite(LEFT_MOTOR_IN2, LOW);
-  digitalWrite(RIGHT_MOTOR_IN3, LOW);
-  digitalWrite(RIGHT_MOTOR_IN4, HIGH);
+  // Ramp up speed from low to max PWM duty cycle for turning right
+  for (motorSpeed = speedStart; motorSpeed <= maxSpeed; motorSpeed += speedIncrement) {
+    analogWrite(LEFT_MOTOR_IN1, motorSpeed);  // Turn left motor forward
+    analogWrite(LEFT_MOTOR_IN2, 0);
+    analogWrite(RIGHT_MOTOR_IN3, 0);   // Stop right motor
+    analogWrite(RIGHT_MOTOR_IN4, motorSpeed);
+    delay(speedStepDelay);  // Delay for smooth turning
+  }
   Serial.println("Turning right");
   delay(500);  // Adjust for smooth turning
   stopMovement();

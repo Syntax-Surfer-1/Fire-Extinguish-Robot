@@ -1,7 +1,7 @@
 //  *
 //  * Build-4 
 //  * Build Date: 01-18-2025
-//  * Build Time: 7:30 PM
+//  * Build Time: 8:30 PM
 //  *
 //  * Code Summary:
 //  * - This program uses an ESP32 to control a servo, three ultrasonic sensors (front, left, and right), and an L298N motor driver for controlling wheels.
@@ -54,18 +54,18 @@
 #define MAX_DISTANCE 200
 
 // Distance threshold for triggering movement (adjustable)
-int OBJECT_THRESHOLD_FRONT = 25;  // in cm
-int OBJECT_THRESHOLD_SIDE = 25;   // in cm
+int OBJECT_THRESHOLD_FRONT = 30;  // in cm
+int OBJECT_THRESHOLD_SIDE = 18;   // in cm
 
 // Delay after object detection (adjustable)
-float OBJECT_DETECTION_DELAY = 1.0;  // Delay for stability (in seconds)
+float OBJECT_DETECTION_DELAY = 0.05;  // Delay for stability (in seconds)
 
 // Customizable angle for looking left and right
-int LOOK_ANGLE = 90;  // Maximum angle for servo rotation
+int LOOK_ANGLE = 70;  // Maximum angle for servo rotation
 
 // Motor speed control variables
 int motorSpeed = 0;    // Start with low speed (PWM) 
-int maxSpeed = 255;    // Max PWM value for motor speed (0 to 255)
+int maxSpeed = 200;    // Max PWM value for motor speed (0 to 255)
 int speedIncrement = 5; // Speed increment per loop
 int speedStart = 50;   // PWM value to start from (0 to 255)
 int speedStepDelay = 20; // Delay for increasing speed (adjustable)
@@ -151,7 +151,7 @@ void loop() {
     } else {
         Serial.println("Both sides blocked or too short. Reversing again...");
         moveBackward();
-        delay(1000);  // Reverse again for 1 second
+        delay(100);  // Reverse again for 1 second
     }
   } else if (distanceLeft <= OBJECT_THRESHOLD_SIDE) {
     // Object detected on the left side
@@ -192,8 +192,7 @@ void scanLeftRight(int &combinedLeft, int &combinedRight) {
 
   // Return to center
   myservo.write(90);
-  delay(500);  // Wait for servo to return to center
-
+  delay(500);  // Wait for servo to return to cen
   // Combine data from front and side sensors
   combinedLeft = min(leftSensor, frontSensorLeft);
   combinedRight = min(rightSensor, frontSensorRight);
@@ -238,35 +237,33 @@ void moveBackward() {
     analogWrite(LEFT_MOTOR_IN2, motorSpeed);
     analogWrite(RIGHT_MOTOR_IN3, 0);  // Backward direction for right motor
     analogWrite(RIGHT_MOTOR_IN4, motorSpeed);
-    delay(speedStepDelay);  // Delay for smooth acceleration
+    // delay(speedStepDelay);  // Delay for smooth acceleration
   }
   Serial.println("Moving backward at max speed");
 }
 
 void turnLeft() {
-  // Ramp up speed from low to max PWM duty cycle for turning left
-  for (motorSpeed = speedStart; motorSpeed <= maxSpeed; motorSpeed += speedIncrement) {
-    analogWrite(LEFT_MOTOR_IN1, 0);   // Stop left motor
-    analogWrite(LEFT_MOTOR_IN2, motorSpeed);
-    analogWrite(RIGHT_MOTOR_IN3, motorSpeed); // Turn right motor forward
-    analogWrite(RIGHT_MOTOR_IN4, 0);
-    delay(speedStepDelay);  // Delay for smooth turning
-  }
-  Serial.println("Turning left");
-  delay(500);  // Adjust for smooth turning
+  Serial.println("Turning left at full power...");
+  
+  // Apply full power to turn left
+  analogWrite(LEFT_MOTOR_IN1, 0);   
+  analogWrite(LEFT_MOTOR_IN2, maxSpeed);  // Reverse left motor
+  analogWrite(RIGHT_MOTOR_IN3, maxSpeed); // Forward right motor
+  analogWrite(RIGHT_MOTOR_IN4, 0);
+
+  delay(600);  // Adjust delay based on turning speed
   stopMovement();
 }
 
 void turnRight() {
-  // Ramp up speed from low to max PWM duty cycle for turning right
-  for (motorSpeed = speedStart; motorSpeed <= maxSpeed; motorSpeed += speedIncrement) {
-    analogWrite(LEFT_MOTOR_IN1, motorSpeed);  // Turn left motor forward
-    analogWrite(LEFT_MOTOR_IN2, 0);
-    analogWrite(RIGHT_MOTOR_IN3, 0);   // Stop right motor
-    analogWrite(RIGHT_MOTOR_IN4, motorSpeed);
-    delay(speedStepDelay);  // Delay for smooth turning
-  }
-  Serial.println("Turning right");
-  delay(500);  // Adjust for smooth turning
+  Serial.println("Turning right at full power...");
+
+  // Apply full power to turn right
+  analogWrite(LEFT_MOTOR_IN1, maxSpeed);  // Forward left motor
+  analogWrite(LEFT_MOTOR_IN2, 0);
+  analogWrite(RIGHT_MOTOR_IN3, 0);
+  analogWrite(RIGHT_MOTOR_IN4, maxSpeed); // Reverse right motor
+
+  delay(600);  // Adjust delay based on turning speed
   stopMovement();
 }

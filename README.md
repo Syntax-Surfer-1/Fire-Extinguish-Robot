@@ -1,131 +1,133 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ESP32 Obstacle Avoidance Robot with Bluetooth Manual Control 🎯🎯🎯
-
-## Build Information 🎉🎉🎉
-
-### Build-5 🚀
-- **Build Date:** 01-18-2025
-- **Build Time:** 7:30 PM
+# 🔥 **Fire Extinguish Robot**  
+### *(Autonomous + Manual Bluetooth PC Control)*  
 
 ---
 
-### **Code Summary 🛠️**  
-This program uses an ESP32 to control a **servo**, three **ultrasonic sensors** (front, left, and right), and an **L298N motor driver** for wheel movement. Additionally, it introduces **Bluetooth control via the ESP32’s built-in Bluetooth**.  
-
-### **Key Features 🚀**  
-- **Manual Bluetooth Control** 📱: The ESP32 pairs directly with a mobile phone. After pairing, users can send movement commands (`F`, `B`, `L`, `R`, `S`) from an Android app.  
-- **Autonomous Obstacle Avoidance** 🤖: The robot moves forward, using ultrasonic sensors to detect obstacles and make navigation decisions.  
-- **Reverse and Scan** 🔄: If an object is detected, the robot reverses, scans left and right using the servo, and chooses the best direction to turn.  
-- **Smart Decision-Making** 🧠: Turns left or right based on **distance readings** from the left and right sensors. If both sides are blocked, the robot continues reversing.  
-
-### **Adjustable Parameters 🔧**  
-- **OBJECT_THRESHOLD_FRONT, OBJECT_THRESHOLD_LEFT, OBJECT_THRESHOLD_RIGHT**: Distance thresholds (in cm) for detecting objects.  
-- **OBJECT_DETECTION_DELAY**: Delay (in seconds) after object detection or scans.  
-- **LOOK_ANGLE**: Maximum angle (up to **90°**) for servo movement to the left and right.  
-- **SPEED_INCREMENT**: Gradual motor speed increase for **smooth acceleration** and jerk prevention.  
-
-### **How This Works** 🛠️  
-1. **Manual Mode (Bluetooth)**: The robot responds to Bluetooth commands (`F`, `B`, `L`, `R`, `S`) from a mobile app.  
-2. **Autonomous Mode**: If no Bluetooth input is detected, the robot moves forward while scanning for obstacles.  
-3. **Obstacle Handling**:  
-   - If an object is detected, it reverses.  
-   - The servo scans left and right.  
-   - The robot turns toward the clearer path.
-   
+## 📦 Version Information  
+- **Version:** v1.0.0  
+- **Version Last Updated:** April 10, 2025  
 ---
 
-## **🔧 Libraries Used**  
-- **ESP32Servo** → Controls the **servo motor**.  
-- **NewPing** → For **ultrasonic distance measurement**.  
-- **BluetoothSerial** → Enables **built-in ESP32 Bluetooth communication**.  
+## 🧠 Project Overview  
+
+The **Fire Extinguish Robot** is an advanced, dual-mode robotic system designed for autonomous firefighting and manual control via Bluetooth. Built on the **ESP32 platform**, the robot leverages directional fire sensing, ultrasonic obstacle detection, and real-time Bluetooth communication with a custom desktop interface. 
+
+With its intelligent navigation, scanning, and extinguishing capabilities, this system serves as a powerful educational and experimental platform for robotics, IoT, and embedded systems.
 
 ---
 
-## **📡 Connecting via Bluetooth**  
-**Steps to connect the ESP32 to your Android phone:**  
-1. **Turn on ESP32** → It automatically enters **Bluetooth pairing mode**.  
-2. **Go to your phone’s Bluetooth settings** → Find **"ESP32_ROBOT"** and pair.  
-3. **Open the Android app** → Click **"Connect"** to establish a connection.  
-4. **Start sending commands (F, B, L, R, S) to move the robot!**  
+## 🧰 Software Libraries  
+
+- Arduino Core  
+- ESP32Servo  
+- NewPing  
+- BluetoothSerial  
 
 ---
 
-## **📲 Android App Controls**  
-- **The app includes:**  
-  ✅ **Buttons for Forward, Backward, Left, Right, and Stop**  
-  ✅ **Real-time Bluetooth connection status**  
-  ✅ **Auto-reconnect feature**  
+## 🛠️ Components  
+
+- ESP32 Development Board  
+- Ultrasonic Sensors (×3)  
+- IR Flame Sensors (×3)  
+- Submersible Water Pump  
+- SG90 Servo Motor  
+- L298N Motor Driver  
+- 12V DC Motors with Wheels (×4)  
+- 3.3V Lithium-ion Batteries (×4)  
+- Jumper Wires and Breadboard  
 
 ---
 
-## Connection Details 🔌
+## 📌 Pin Configuration  
 
-### Components and Pin Connections 🧷
+**Ultrasonic Sensors:**  
+- Front Sensor: TRIG → D18, ECHO → D19  
+- Left Sensor: TRIG → D15, ECHO → D4  
+- Right Sensor: TRIG → D23, ECHO → D22  
 
-#### Ultrasonic Sensors (HC-SR04):
-- **Front Sensor**:
-  - **TRIG Pin**: GPIO 18
-  - **ECHO Pin**: GPIO 19
-- **Left Sensor**:
-  - **TRIG Pin**: GPIO 15
-  - **ECHO Pin**: GPIO 4
-- **Right Sensor**:
-  - **TRIG Pin**: GPIO 23
-  - **ECHO Pin**: GPIO 22
+**Flame Sensors:**  
+- Left Flame Sensor:  AO → D25  
+- Right Flame Sensor: AO → D33  
+- Front Flame Sensor: AO → D32  
 
-#### Servo Motor:
-- **Signal Pin**: GPIO 13
-- **VCC Pin**: Connect to 5V (or external power source if required for high torque)
-- **GND Pin**: Connect to ESP32 GND
+**Water Pump:**  
+- Control Pin → D2  
 
-#### Motor Driver (L298N):
-- **OUT-1**: GPIO 12
-- **OUT-2**: GPIO 14
-- **OUT-3**: GPIO 27
-- **OUT-4**: GPIO 26
+**Servo Motor:**  
+- Control Pin → D13  
 
-#### ESP32 Power Supply:
-- **USB Connection**: Use a micro-USB cable to power the ESP32 development board.
-- **External Power Source**: Ensure proper voltage regulation if using an external power supply. 💡
+**Motor Driver (L298N):**  
+- IN1 → D12  
+- IN2 → D14  
+- IN3 → D27  
+- IN4 → D26  
 
 ---
 
-## **🚀 Key Enhancements from Build-4**  
-✅ **No external Bluetooth module needed (Uses ESP32 built-in Bluetooth)**  
-✅ **Easier pairing with Android (Just select "ESP32_ROBOT")**  
-✅ **Automatic mode switching between manual & autonomous**  
-✅ **Refactored servo scanning for better precision**  
-✅ **General code cleanup for better performance**  
+## 🔧 Bluetooth Manual Control Setup  
+
+To enable manual control via PC:  
+
+1. Power on the ESP32 robot.  
+2. Open Bluetooth settings on your Windows PC.  
+3. Select “Add Bluetooth or other device” → Choose “Bluetooth”.  
+4. Pair with `ESP32_Car`.  
+5. Navigate to “More Bluetooth Options” → COM Ports tab.  
+6. Note the **Outgoing COM port** for `ESP32_Car`.
+
+📸 *App Screenshot Placeholder – Bluetooth COM Port Configuration*
 
 ---
 
-Now, you just **turn on ESP32**, **pair via Bluetooth**, and **control the robot using the Android app**—**no extra setup required!** 🚀🔥
+## 💻 PC Application Connection  
+
+1. Open the **Fire Extinguish Robot Controller App** on your PC.  
+2. Navigate to Settings or “Scene”.  
+3. Select the COM port assigned to `ESP32_Car`.  
+4. Click **Connect** to begin manual control.
+
+📸 *App Screenshot Placeholder – Controller UI and COM Port Selection*
 
 ---
 
-## Contact Information ✉️
+## ⚙️ Key Features  
 
-For further information or collaboration, please reach out via:
+- Autonomous navigation and obstacle avoidance  
+- Multi-directional fire detection with servo-based scanning  
+- Automatic water pump activation  
+- Manual override via Bluetooth-connected PC application  
+- Intelligent decision-making for real-time fire suppression  
+- Automatic fallback to autonomous mode when Bluetooth is idle  
 
-- **Email:** [yaxpatel6300@gmail.com](mailto:yaxpatel6300@gmail.com)
-- **GitHub:** [Syntax-Surfer-1](https://github.com/Syntax-Surfer-1) 🌐
+---
+
+## 🖼️ Circuit Design  
+
+📸 *Circuit Diagram Placeholder – Include schematic showing full wiring layout*
+
+---
+
+## 🎬 Live Demonstration  
+
+📸 *Demo Screenshot or Video Link Placeholder – Showcase robot in action*
+
+---
+
+## 🚀 Planned Enhancements  
+
+- Integration of temperature-based fire verification  
+- Android application for mobile control  
+- Wi-Fi-based telemetry and remote access  
+- Real-time battery voltage monitoring  
+
+---
+
+## 📬 Contact & Contributions  
+
+For questions, collaboration, or contributions:  
+- 📧 Email: [yaxpatel6300@gmail.com](mailto:yaxpatel6300@gmail.com)  
+- 💻 GitHub: [Syntax-Surfer-1](https://github.com/Syntax-Surfer-1)
 
 ---
 

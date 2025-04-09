@@ -31,26 +31,44 @@
 //  * - **Code optimizations** for better performance and stability.  
 //  *
 
-
+#include <Arduino.h>
 #include <ESP32Servo.h>
 #include <NewPing.h>
 #include <BluetoothSerial.h>
 BluetoothSerial SerialBT; // Create Bluetooth Serial object
 
+
+
+bool extinguishActive = false;  // Whether we're extinguishing
+unsigned long lastSweepTime = 0;
+bool sweepDirection = false;
+const int SERVO_SWEEP_INTERVAL = 300;  // Time between sweeps
+
+
+
+
+
 #define AUTO_MODE 0
 #define MANUAL_MODE 1
+#define FIRE_MODE 2
 
 int mode = AUTO_MODE;  // Default mode
 
-
 // Pin assignments for ultrasonic sensors
-// Pin Assignments
 #define TRIG_PIN_FRONT 18
 #define ECHO_PIN_FRONT 19
 #define TRIG_PIN_LEFT 15
 #define ECHO_PIN_LEFT 4
 #define TRIG_PIN_RIGHT 23
 #define ECHO_PIN_RIGHT 22
+
+// Pin assignments for ultrasonic sensors
+#define FIRE_SENSOR_LEFT 25
+#define FIRE_SENSOR_RIGHT 33
+#define FIRE_FRONT_PIN 32
+
+// Water Pump Pin 
+#define PUMP_PIN 2
 
 // Servo pin
 #define SERVO_PIN 13
@@ -63,6 +81,11 @@ int mode = AUTO_MODE;  // Default mode
 
 // Maximum distance (in cm) for ultrasonic sensors
 #define MAX_DISTANCE 200
+
+// Fire Detection
+#define WAIT_AFTER_EXTINGUISH 5000 // Wait time after fire is out (in ms)
+#define FIRE_THRESHOLD 600         // Value below this = fire detected
+#define FIRE_NEAR_THRESHOLD  400   // Fire is close
 
 // Distance threshold for triggering movement (adjustable)
 int OBJECT_THRESHOLD_FRONT = 30;  // in cm
@@ -85,6 +108,8 @@ int speedStepDelay = 20; // Delay for increasing speed (adjustable)
 // Add a global flag to track motor speed ramp-up status
 bool isMovingForward = false;
 
+
+
 // Initialize ultrasonic sensors
 NewPing sonarFront(TRIG_PIN_FRONT, ECHO_PIN_FRONT, MAX_DISTANCE);
 NewPing sonarLeft(TRIG_PIN_LEFT, ECHO_PIN_LEFT, MAX_DISTANCE);
@@ -100,7 +125,10 @@ void moveForward();
 void moveBackward();
 void turnLeft();
 void turnRight();
+bool fireDetected();
+void extinguishFire(int state);
 void scanLeftRight(int &combinedLeft, int &combinedRight);
+void handleFireMode(int distanceFront, int distanceLeft, int distanceRight);
 
 void setup() {
   Serial.begin(115200);          // Start serial communication
@@ -113,6 +141,12 @@ void setup() {
   pinMode(LEFT_MOTOR_IN2, OUTPUT);
   pinMode(RIGHT_MOTOR_IN3, OUTPUT);
   pinMode(RIGHT_MOTOR_IN4, OUTPUT);
+
+  pinMode(PUMP_PIN, OUTPUT);
+  //Fire sensor 
+  pinMode(FIRE_SENSOR_LEFT, INPUT);
+  pinMode(FIRE_FRONT_PIN, INPUT);
+  pinMode(FIRE_SENSOR_RIGHT, INPUT);
 }
 
 void loop() {
@@ -128,8 +162,21 @@ void loop() {
   if (distanceLeft == 0) distanceLeft = MAX_DISTANCE;
   if (distanceRight == 0) distanceRight = MAX_DISTANCE;
 
-  String data = String(distanceFront) + "," + String(distanceLeft) + "," + String(distanceRight);
-  SerialBT.println(data);  // Send data to Bluetooth
+// Read fire sensor values
+int fireLeftReading = analogRead(25);  // D25
+int fireRightReading = analogRead(33); // D33
+int fireFrontReading = analogRead(32); // D33
+
+// Combine all data into one string
+String data = String(distanceLeft) + "," +
+              String(distanceFront) + "," +
+              String(distanceRight) + "," +
+              String(fireLeftReading) + "," +
+              String(fireRightReading) + "," +
+              0;
+
+// Send data to Bluetooth
+SerialBT.println(data);
 
   // Display sensor readings for debugging
   // Serial.println("======================");
@@ -138,6 +185,23 @@ void loop() {
   // Serial.printf("Right Distance: %d cm\n", distanceRight);
   // Serial.println("======================");
   char command;
+
+  if (extinguishActive) {
+    unsigned long currentTime = millis();
+    if (currentTime - lastSweepTime >= SERVO_SWEEP_INTERVAL) {
+      lastSweepTime = currentTime;
+  
+      if (sweepDirection) {
+        myservo.write(90 - LOOK_ANGLE);
+      } else {
+        myservo.write(90 + LOOK_ANGLE);
+      }
+  
+      sweepDirection = !sweepDirection;
+    }
+  }
+  
+
   // Check mode
   if (mode == MANUAL_MODE) {
     // Process Bluetooth commands for manual control
@@ -177,7 +241,12 @@ void loop() {
       else if (command == 'D') {
         Serial.println("Set To Default Speed");
         maxSpeed = defaultspeed;
-      } // Add more commands as needed for manual control
+      } 
+      else if (command == 'W') {
+        extinguishActive = !extinguishActive; // Toggle the state
+        extinguishFire(extinguishActive ? 1 : 0); // Call with 1 or 0 based on toggle
+        Serial.println(extinguishActive ? "💧 Extinguish ON (W)" : "🛑 Extinguish OFF (W)");
+      }// Add more commands as needed for manual control
       else {
         Serial.println("Unknown Command");
 
@@ -204,6 +273,20 @@ void loop() {
       }
     }
     
+    int fireLeft = analogRead(FIRE_SENSOR_LEFT);
+    int fireRight = analogRead(FIRE_SENSOR_RIGHT);
+
+    Serial.print("Fire Left: ");
+    Serial.print(fireLeft);
+    Serial.print(" | Fire Right: ");
+    Serial.println(fireRight);
+
+    if (fireLeft < FIRE_THRESHOLD || fireRight < FIRE_THRESHOLD) {
+      Serial.println("🔥 Fire detected! Switching to FIRE MODE...");
+      mode = FIRE_MODE;
+      return;  // exit this cycle, FIRE_MODE will run in next loop
+    }
+
     // Add stabilization delay after detecting objects
     delay(OBJECT_DETECTION_DELAY * 1000);
 
@@ -252,6 +335,11 @@ void loop() {
       moveForward();
     }
     
+  }
+
+  // Mode handler
+  else if (mode == FIRE_MODE) {
+    handleFireMode(distanceFront, distanceLeft, distanceRight);
   }
 
   // Short delay to avoid flooding the serial output
@@ -340,7 +428,7 @@ void moveBackward() {
     analogWrite(RIGHT_MOTOR_IN4, motorSpeed);
     // delay(speedStepDelay);  // Delay for smooth acceleration
   }
-  Serial.println("Moving backward at max speed");
+  Serial.println("Moving backward at max speed"); 
 }
 
 void turnLeft() {
@@ -367,4 +455,91 @@ void turnRight() {
 
   delay(600);  // Adjust delay based on turning speed
   stopMovement();
+}
+
+bool fireDetected() {
+  int fireLeft = analogRead(25);   // D25 = left fire sensor
+  int fireRight = analogRead(33);  // D33 = right fire sensor
+  int fireFront = analogRead(32);  // D32 = front fire sensor
+
+  return (fireLeft < FIRE_THRESHOLD || fireRight < FIRE_THRESHOLD || fireFront < FIRE_THRESHOLD);
+}
+
+void extinguishFire(int state) {
+  if (state == 1) {
+    extinguishActive = true;
+    digitalWrite(PUMP_PIN, HIGH);  // Turn on pump
+  } else {
+    extinguishActive = false;
+    digitalWrite(PUMP_PIN, LOW);   // Turn off pump
+    myservo.write(90);             // Center servo
+  }
+}
+
+
+void handleFireMode(int distanceFront, int distanceLeft, int distanceRight) {
+  int fireLeft = analogRead(25);
+  int fireRight = analogRead(33);
+  int fireFront = analogRead(32); // New fire sensor
+
+  Serial.print("🔥 FIRE MODE => Left: ");
+  Serial.print(fireLeft);
+  Serial.print(" | Right: ");
+  Serial.print(fireRight);
+  Serial.print(" | Front: ");
+  Serial.print(fireFront);
+  Serial.print(" || Distance F: ");
+  Serial.print(distanceFront);
+  Serial.print(" | L: ");
+  Serial.print(distanceLeft);
+  Serial.print(" | R: ");
+  Serial.println(distanceRight);
+
+  // Obstacle avoidance
+  if (distanceFront < 15) {
+    stopMovement();
+    delay(300);
+    moveBackward();
+    delay(300);
+    if (distanceLeft > distanceRight) {
+      turnLeft();
+    } else {
+      turnRight();
+    }
+    delay(500);
+  } else if (distanceLeft < 10) {
+    turnRight();
+    delay(300);
+  } else if (distanceRight < 10) {
+    turnLeft();
+    delay(300);
+  }
+
+  // Follow fire direction
+  if (fireLeft < FIRE_THRESHOLD && fireRight >= FIRE_THRESHOLD && fireFront >= FIRE_THRESHOLD) {
+    turnLeft();
+  } else if (fireRight < FIRE_THRESHOLD && fireLeft >= FIRE_THRESHOLD && fireFront >= FIRE_THRESHOLD) {
+    turnRight();
+  } else {
+    moveForward(); // Fire is likely centered
+  }
+
+  // When close to fire
+  if ((fireLeft < FIRE_NEAR_THRESHOLD || fireRight < FIRE_NEAR_THRESHOLD || fireFront < FIRE_NEAR_THRESHOLD)
+      && distanceFront < 10) {
+
+    stopMovement();  // Important: stop before extinguishing
+
+    while (fireDetected()) {
+      extinguishFire(1); // Keep extinguishing
+    }
+
+    extinguishFire(0);  // Stop extinguisher and reset
+    delay(WAIT_AFTER_EXTINGUISH);
+
+    if (analogRead(25) > FIRE_THRESHOLD && analogRead(33) > FIRE_THRESHOLD && analogRead(32) > FIRE_THRESHOLD) {
+      mode = AUTO_MODE;
+      Serial.println("✅ Fire extinguished! Switching to AUTO_MODE");
+    }    
+  }
 }

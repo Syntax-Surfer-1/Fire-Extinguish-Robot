@@ -76,7 +76,7 @@ To enable manual control via PC:
 5. Navigate to “More Bluetooth Options” → COM Ports tab.  
 6. Note the **Outgoing COM port** for `ESP32_Car`.
 
-📸 *App Screenshot Placeholder – Bluetooth COM Port Configuration*
+![📸 Image](assets/1.png)
 
 ---
 
@@ -87,7 +87,8 @@ To enable manual control via PC:
 3. Select the COM port assigned to `ESP32_Car`.  
 4. Click **Connect** to begin manual control.
 
-📸 *App Screenshot Placeholder – Controller UI and COM Port Selection*
+![📸 Image](assets/2.png)
+
 
 ---
 
@@ -104,13 +105,13 @@ To enable manual control via PC:
 
 ## 🖼️ Circuit Design  
 
-📸 *Circuit Diagram Placeholder – Include schematic showing full wiring layout*
+![📸 Image](assets/4.png)
 
 ---
 
 ## 🎬 Live Demonstration  
 
-📸 *Demo Screenshot or Video Link Placeholder – Showcase robot in action*
+📸 **Coming Soon**
 
 ---
 

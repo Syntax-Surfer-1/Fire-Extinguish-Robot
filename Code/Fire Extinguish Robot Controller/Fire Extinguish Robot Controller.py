@@ -148,7 +148,7 @@ class SensorDashboard(ctk.CTk):
             webbrowser.open("https://github.com/Syntax-Surfer-1")
 
         def open_repo():
-            webbrowser.open("https://github.com/your_repo")
+            webbrowser.open("https://github.com/Syntax-Surfer-1/Fire-Extinguish-Robot")
 
         def show_controls():
             controls_window = ctk.CTkToplevel(self)

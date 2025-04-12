@@ -1,35 +1,67 @@
-//  *
-//  * Build-5  
-//  * Build Date: 02-22-2025  
-//  * Build Time: 10:00 AM  
-//  *
-//  * Code Summary 🛠️
-//  * - This program uses an ESP32 to control a servo, three ultrasonic sensors (front, left, and right), and an L298N motor driver for controlling wheels.  
-//  * - The robot can operate in **two modes**:  
-//  *     1️⃣ **Manual Mode (Bluetooth)**: Controlled via an Android app connected via ESP32’s built-in Bluetooth.  
-//  *     2️⃣ **Autonomous Mode**: The robot moves forward while scanning for obstacles using ultrasonic sensors.  
-//  * - If an object is detected in front, the robot reverses, performs a servo left-right scan, and decides the best path to take.  
-//  * - Smooth motor speed control is implemented using PWM ramp-up for better movement transitions.  
-//  * - **Seamless Mode Switching**: If Bluetooth commands are received, the robot follows manual control. Otherwise, it remains in autonomous mode.  
-//  *
-//  * Libraries Used 📚
-//  * - **ESP32Servo**: For controlling the servo motor.  
-//  * - **NewPing**: For ultrasonic sensor readings.  
-//  * - **BluetoothSerial**: For Bluetooth communication with a mobile app.  
-//  *
-//  * Adjustable Parameters ⚙️
-//  * - **OBJECT_THRESHOLD_FRONT, OBJECT_THRESHOLD_LEFT, OBJECT_THRESHOLD_RIGHT**: Distance threshold (in cm) for detecting objects.  
-//  * - **OBJECT_DETECTION_DELAY**: Delay (in seconds) after object detection or scans.  
-//  * - **LOOK_ANGLE**: Maximum angle (up to 90°) for servo movement to the left and right.  
-//  * - **SPEED_INCREMENT**: Amount by which motor speed increases for smoother ramp-up.  
-//  *
-//  * Key Enhancements from Build-4 🚀
-//  * - **Added Bluetooth control** using ESP32’s built-in Bluetooth (no need for HC-05/HC-06).  
-//  * - **Implemented manual mode**: Commands (`F`, `B`, `L`, `R`, `S`) from the Android app control movement.  
-//  * - **Seamless switching between manual & autonomous mode** based on Bluetooth connectivity.  
-//  * - **Improved distance handling** for better obstacle avoidance.  
-//  * - **Code optimizations** for better performance and stability.  
-//  *
+//  * ───────────────────────────────────────────────────────────────
+//  * Project Title: Fire Extinguish Robot (Autonomous + Manual Bluetooth PC Control)
+//  * Project Version: v1.0.0
+//  * Build Date: 04-12-2025  
+//  * Build Time: 10:00 PM  
+//  * ───────────────────────────────────────────────────────────────
+//  * 
+//  * Description:
+//  * - This project is a robot that uses an ESP32 development board to autonomously detect obstacles and fire.
+//  * - The robot is equipped with ultrasonic sensors for obstacle detection, IR flame sensors to detect fire, and a water pump to extinguish the fire.
+//  * - It operates in two modes: **Manual Mode** (via Bluetooth control from an Android app) and **Autonomous Mode** (moving and avoiding obstacles while detecting fire).
+//  * - The robot's servo motor allows it to scan for fire, and it uses an L298N motor driver to control the wheels.
+//  * - The system will activate a submersible water pump to extinguish the fire when detected close, and resume normal operation once the fire is cleared.
+//  * 
+//  * Key Features:
+//  * - Autonomous navigation and obstacle avoidance using ultrasonic sensors.
+//  * - Fire detection using IR flame sensors.
+//  * - Automatic fire extinguishing via water pump.
+//  * - Bluetooth control for manual mode via Android app.
+//  * - Seamless mode switching between manual and autonomous operation.
+//  * - Smooth motor control with PWM ramp-up for better movement transitions.
+//
+//  * 📌 Code Summary:
+//  * - Uses ESP32 to control:
+//  *     → A servo motor
+//  *     → Three ultrasonic sensors (front, left, right)
+//  *     → L298N motor driver for four-wheel movement
+//  *     → Submersible water pump for fire extinguishing
+//  *     → IR flame sensors for fire detection
+//  * - Operates in **two modes**:
+//  *     1️⃣ Manual Mode (Bluetooth):
+//  *        → Controlled via Android app over ESP32’s built-in Bluetooth
+//  *     2️⃣ Autonomous Mode:
+//  *        → Robot moves forward, detects obstacles using ultrasonic sensors
+//  *        → If object is detected: reverses, scans with servo, chooses best path
+//  * - Smooth PWM-based motor speed ramp-up for transitions
+//  * - Fire mode triggers when fire is detected and extinguishes automatically
+//  * - **Seamless mode switching** based on Bluetooth activity
+//
+//  * 📚 Libraries Used:
+//  * - ESP32Servo  
+//  * - NewPing  
+//  * - BluetoothSerial  
+//
+//  * ⚙️ Adjustable Parameters:
+//  * - OBJECT_THRESHOLD_FRONT  
+//  * - OBJECT_THRESHOLD_LEFT  
+//  * - OBJECT_THRESHOLD_RIGHT  
+//  * - OBJECT_DETECTION_DELAY  
+//  * - LOOK_ANGLE  
+//  * - SPEED_INCREMENT  
+//
+//  * 🧰 Hardware Used:
+//  * - ESP32 Development Board  
+//  * - Ultrasonic Sensors (×3)  
+//  * - IR Flame Sensors (×3)  
+//  * - Submersible Water Pump  
+//  * - SG90 Servo Motor  
+//  * - L298N Motor Driver  
+//  * - 12V DC Motors with Wheels (×4)  
+//  * - 3.3V Lithium-ion Batteries (×4)  
+//
+//  * ───────────────────────────────────────────────────────────────
+
 
 #include <Arduino.h>
 #include <ESP32Servo.h>
@@ -38,14 +70,10 @@
 BluetoothSerial SerialBT; // Create Bluetooth Serial object
 
 
-
 bool extinguishActive = false;  // Whether we're extinguishing
 unsigned long lastSweepTime = 0;
 bool sweepDirection = false;
 const int SERVO_SWEEP_INTERVAL = 300;  // Time between sweeps
-
-
-
 
 
 #define AUTO_MODE 0
@@ -54,7 +82,8 @@ const int SERVO_SWEEP_INTERVAL = 300;  // Time between sweeps
 
 int mode = AUTO_MODE;  // Default mode
 
-// Pin assignments for ultrasonic sensors
+// Pin assignments
+// Ultrasonic Sensors Pins
 #define TRIG_PIN_FRONT 18
 #define ECHO_PIN_FRONT 19
 #define TRIG_PIN_LEFT 15
@@ -62,7 +91,7 @@ int mode = AUTO_MODE;  // Default mode
 #define TRIG_PIN_RIGHT 23
 #define ECHO_PIN_RIGHT 22
 
-// Pin assignments for ultrasonic sensors
+// Fire Sensors Pins
 #define FIRE_SENSOR_LEFT 25
 #define FIRE_SENSOR_RIGHT 33
 #define FIRE_FRONT_PIN 32
@@ -70,15 +99,16 @@ int mode = AUTO_MODE;  // Default mode
 // Water Pump Pin 
 #define PUMP_PIN 2
 
-// Servo pin
+// Servo Pin
 #define SERVO_PIN 13
 
-// Motor driver pins
+// Motor Driver Pins
 #define LEFT_MOTOR_IN1 12
 #define LEFT_MOTOR_IN2 14
 #define RIGHT_MOTOR_IN3 27
 #define RIGHT_MOTOR_IN4 26
 
+// Adjustable Parameters
 // Maximum distance (in cm) for ultrasonic sensors
 #define MAX_DISTANCE 200
 
@@ -157,15 +187,22 @@ void loop() {
   int distanceLeft = sonarLeft.ping_cm();
   int distanceRight = sonarRight.ping_cm();
 
+  // Read fire sensor values
+  int fireLeftReading = analogRead(25);  // D25
+  int fireRightReading = analogRead(33); // D33
+  int fireFrontReading = analogRead(32); // D33
+
   // Handle cases where no echo is detected (distance will be 0)
   if (distanceFront == 0) distanceFront = MAX_DISTANCE;
   if (distanceLeft == 0) distanceLeft = MAX_DISTANCE;
   if (distanceRight == 0) distanceRight = MAX_DISTANCE;
 
-// Read fire sensor values
-int fireLeftReading = analogRead(25);  // D25
-int fireRightReading = analogRead(33); // D33
-int fireFrontReading = analogRead(32); // D33
+  // // Handle cases where no echo is detected (distance will be 0)
+  // if (fireLeftReading == 0) fireLeftReading = 4095;
+  // if (fireRightReading == 0) fireRightReading = 4095;
+  // if (fireFrontReading == 0) fireFrontReading = 4095;
+
+
 
 // Combine all data into one string
 String data = String(distanceLeft) + "," +
@@ -173,7 +210,7 @@ String data = String(distanceLeft) + "," +
               String(distanceRight) + "," +
               String(fireLeftReading) + "," +
               String(fireRightReading) + "," +
-              0;
+              String(fireRightReading);
 
 // Send data to Bluetooth
 SerialBT.println(data);
@@ -272,16 +309,13 @@ SerialBT.println(data);
         Serial.println("Unknown Command");
       }
     }
-    
-    int fireLeft = analogRead(FIRE_SENSOR_LEFT);
-    int fireRight = analogRead(FIRE_SENSOR_RIGHT);
 
     Serial.print("Fire Left: ");
-    Serial.print(fireLeft);
+    Serial.print(fireLeftReading);
     Serial.print(" | Fire Right: ");
-    Serial.println(fireRight);
+    Serial.println(fireRightReading);
 
-    if (fireLeft < FIRE_THRESHOLD || fireRight < FIRE_THRESHOLD) {
+    if (fireLeftReading < FIRE_THRESHOLD || fireRightReading < FIRE_THRESHOLD || fireFrontReading < FIRE_THRESHOLD) {
       Serial.println("🔥 Fire detected! Switching to FIRE MODE...");
       mode = FIRE_MODE;
       return;  // exit this cycle, FIRE_MODE will run in next loop
@@ -457,14 +491,6 @@ void turnRight() {
   stopMovement();
 }
 
-bool fireDetected() {
-  int fireLeft = analogRead(25);   // D25 = left fire sensor
-  int fireRight = analogRead(33);  // D33 = right fire sensor
-  int fireFront = analogRead(32);  // D32 = front fire sensor
-
-  return (fireLeft < FIRE_THRESHOLD || fireRight < FIRE_THRESHOLD || fireFront < FIRE_THRESHOLD);
-}
-
 void extinguishFire(int state) {
   if (state == 1) {
     extinguishActive = true;
@@ -477,10 +503,34 @@ void extinguishFire(int state) {
 }
 
 
+bool fireDetected() {
+  if (SerialBT.available()) {
+    char command = SerialBT.read();
+    Serial.print("Received: ");
+    Serial.println(command);
+    if (command == 'A') {
+      mode = AUTO_MODE;
+      Serial.println("Switched to Auto Mode");
+    }
+    else if (command == 'M') {
+      command = 'S';
+      mode = MANUAL_MODE;
+      Serial.println("Switched to Manual Mode");
+    }
+    else {
+      Serial.println("Unknown Command");
+    }
+  }
+  int left = analogRead(25);
+  int right = analogRead(33);
+  int front = analogRead(32);
+  return (left < FIRE_THRESHOLD || right < FIRE_THRESHOLD || front < FIRE_THRESHOLD);
+}
+bool fireConfirmed = false;  // Flag to confirm fire detection
 void handleFireMode(int distanceFront, int distanceLeft, int distanceRight) {
   int fireLeft = analogRead(25);
   int fireRight = analogRead(33);
-  int fireFront = analogRead(32); // New fire sensor
+  int fireFront = analogRead(32);
 
   Serial.print("🔥 FIRE MODE => Left: ");
   Serial.print(fireLeft);
@@ -495,7 +545,7 @@ void handleFireMode(int distanceFront, int distanceLeft, int distanceRight) {
   Serial.print(" | R: ");
   Serial.println(distanceRight);
 
-  // Obstacle avoidance
+  // 🚧 Obstacle Avoidance Logic
   if (distanceFront < 15) {
     stopMovement();
     delay(300);
@@ -507,39 +557,73 @@ void handleFireMode(int distanceFront, int distanceLeft, int distanceRight) {
       turnRight();
     }
     delay(500);
+    return;
   } else if (distanceLeft < 10) {
     turnRight();
     delay(300);
+    return;
   } else if (distanceRight < 10) {
     turnLeft();
     delay(300);
+    return;
   }
 
-  // Follow fire direction
+  // 🔄 Track Fire Direction
   if (fireLeft < FIRE_THRESHOLD && fireRight >= FIRE_THRESHOLD && fireFront >= FIRE_THRESHOLD) {
     turnLeft();
+    delay(300);
+    stopMovement();
   } else if (fireRight < FIRE_THRESHOLD && fireLeft >= FIRE_THRESHOLD && fireFront >= FIRE_THRESHOLD) {
     turnRight();
+    delay(300);
+    stopMovement();
   } else {
-    moveForward(); // Fire is likely centered
+    moveForward();  // Fire is likely in front
+    Serial.println("Continuing forward at max speed");
   }
 
-  // When close to fire
-  if ((fireLeft < FIRE_NEAR_THRESHOLD || fireRight < FIRE_NEAR_THRESHOLD || fireFront < FIRE_NEAR_THRESHOLD)
-      && distanceFront < 10) {
+  // 🧯 Extinguish if close
+  if ((fireLeft < FIRE_NEAR_THRESHOLD || fireRight < FIRE_NEAR_THRESHOLD || fireFront < FIRE_NEAR_THRESHOLD)) {
+    stopMovement();
+    Serial.println("🔥 Fire is close! Activating extinguisher.");
 
-    stopMovement();  // Important: stop before extinguishing
+    digitalWrite(PUMP_PIN, HIGH);  // Turn on pump
 
-    while (fireDetected()) {
-      extinguishFire(1); // Keep extinguishing
+    unsigned long fireGoneStart = 0;
+    bool fireGoneTimerStarted = false;
+
+    while (true) {
+      fireLeft = analogRead(25);
+      fireRight = analogRead(33);
+      fireFront = analogRead(32);
+
+      // Sweep servo
+      myservo.write(90 - LOOK_ANGLE);
+      delay(200);
+      myservo.write(90 + LOOK_ANGLE);
+      delay(200);
+
+      // Check if fire is gone
+      if (fireLeft >= FIRE_THRESHOLD && fireRight >= FIRE_THRESHOLD && fireFront >= FIRE_THRESHOLD) {
+        if (!fireGoneTimerStarted) {
+          fireGoneStart = millis();
+          fireGoneTimerStarted = true;
+        } else if (millis() - fireGoneStart >= 3000) {
+          // Fire is gone for 3 seconds
+          break;
+        }
+      } else {
+        fireGoneTimerStarted = false;  // Reset timer if fire is detected again
+      }
     }
 
-    extinguishFire(0);  // Stop extinguisher and reset
-    delay(WAIT_AFTER_EXTINGUISH);
+    // Stop extinguisher
+    digitalWrite(PUMP_PIN, LOW);
+    myservo.write(90);
+    Serial.println("🛑 Fire extinguished for 3s. Switching to AUTO_MODE.");
 
-    if (analogRead(25) > FIRE_THRESHOLD && analogRead(33) > FIRE_THRESHOLD && analogRead(32) > FIRE_THRESHOLD) {
-      mode = AUTO_MODE;
-      Serial.println("✅ Fire extinguished! Switching to AUTO_MODE");
-    }    
+    mode = AUTO_MODE;
+    stopMovement();
+    delay(500);
   }
 }
